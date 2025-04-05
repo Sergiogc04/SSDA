@@ -1,4 +1,4 @@
-package dad.ConexionCamara;
+package dad.ConexionCamara.Entities;
 
 
 import java.sql.Timestamp;

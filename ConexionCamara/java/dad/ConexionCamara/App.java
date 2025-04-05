@@ -18,7 +18,6 @@ public class App {
                 System.out.println("  - POST   /api/detecciones");
                 System.out.println("  - GET    /api/estados-actuador/{idActuador}");
                 System.out.println("  - POST   /api/estados-actuador");
-                System.out.println("  - GET    /api/alertas/parada-llena/:idActuador");
             } else {
                 System.err.println("❌ Error al desplegar servidor: " + res.cause().getMessage());
                 System.exit(1);

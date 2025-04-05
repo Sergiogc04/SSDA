@@ -1,15 +1,14 @@
-package dad.ConexionCamara;
+package dad.ConexionCamara.Entities;
 
-
-public class Actuador {
+public class Camara {
  private Integer id;
  private String nombre;
  private Integer idGrupo;
 
- public Actuador() {
+ public Camara() {
  }
 
- public Actuador(Integer id, String nombre, Integer idGrupo) {
+ public Camara(Integer id, String nombre, Integer idGrupo) {
      this.id = id;
      this.nombre = nombre;
      this.idGrupo = idGrupo;
@@ -42,6 +41,6 @@ public class Actuador {
 
  @Override
  public String toString() {
-     return "Actuador [id=" + id + ", nombre=" + nombre + ", idGrupo=" + idGrupo + "]";
+     return "Camara [id=" + id + ", nombre=" + nombre + ", idGrupo=" + idGrupo + "]";
  }
 }

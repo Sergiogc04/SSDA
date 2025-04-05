@@ -1,4 +1,4 @@
-package dad.ConexionCamara;
+package dad.ConexionCamara.Entities;
 
 
 public class Grupo {
