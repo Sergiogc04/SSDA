@@ -55,6 +55,13 @@
 	      <version>${mariadb.version}</version>
 	    </dependency>	
 	    
+	<!-- MQTT -->  
+	    <dependency>
+			<groupId>io.vertx</groupId>
+			<artifactId>vertx-mqtt</artifactId>
+			<version>4.2.6</version>
+		</dependency>
+	    
 	 <!-- Jackson (para JSON) -->
 	    <dependency>
 	      <groupId>com.fasterxml.jackson.core</groupId>
