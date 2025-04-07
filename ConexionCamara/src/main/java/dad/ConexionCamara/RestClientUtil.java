@@ -2,6 +2,7 @@ package dad.ConexionCamara;
 
 import java.util.Map;
 
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -18,10 +19,11 @@ public class RestClientUtil {
     
     public RestClientUtil(WebClient client) {
         // Configurar Gson para manejar fechas sin zona horaria
-        this.gson = new GsonBuilder()
-            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss") // Formato ISO sin zona horaria
-            .create();
-        this.client = client;
+    	this.gson = new GsonBuilder()
+    	        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES) // Esta línea es clave
+    	        .setDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+    	        .create();
+    	    this.client = client;
     }
 
     /**
@@ -35,15 +37,29 @@ public class RestClientUtil {
      * @param promise   Promise to be executed on call finish
      */
     public <T> void getRequest(Integer port, String host, String resource, Class<T> classType, Promise<T> promise) {
+        System.out.println("Solicitando: " + host + ":" + port + "/" + resource);
         client.getAbs(host + ":" + port + "/" + resource).send(elem -> {
             if (elem.succeeded()) {
+                String rawJson = elem.result().bodyAsString();
+                System.out.println("Respuesta JSON cruda: " + rawJson);
+                
                 try {
-                    T result = gson.fromJson(elem.result().bodyAsString(), classType);
-                    promise.complete(result);
+                    // Manejo especial para JsonObject
+                    if (classType == JsonObject.class) {
+                        JsonObject result = elem.result().bodyAsJsonObject();
+                        System.out.println("Objeto deserializado: " + result);
+                        promise.complete((T)result);
+                    } else {
+                        T result = gson.fromJson(rawJson, classType);
+                        System.out.println("Objeto deserializado: " + result);
+                        promise.complete(result);
+                    }
                 } catch (Exception e) {
+                    System.err.println("Error al deserializar: " + e.getMessage());
                     promise.fail("Error parsing response: " + e.getMessage());
                 }
             } else {
+                System.err.println("Error en la petición: " + elem.cause());
                 promise.fail(elem.cause());
             }
         });

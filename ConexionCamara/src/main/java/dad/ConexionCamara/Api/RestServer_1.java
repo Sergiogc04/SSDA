@@ -148,26 +148,35 @@ public class RestServer_1 extends AbstractVerticle {
             
             dbService.getLastEstadoActuador(idActuador)
                 .onSuccess(estado -> {
-                    if (estado.getBoolean("estado")) {
-                        // Crear objeto de alerta
-                        JsonObject alerta = new JsonObject()
-                            .put("idActuador", idActuador)
+                    boolean estadoActuador = estado.getBoolean("estado", false);
+                    JsonObject respuesta = new JsonObject()
+                        .put("idActuador", idActuador)
+                        .put("estado", estadoActuador)
+                        .put("timestamp", LocalDateTime.now().toString());
+
+                    if (estadoActuador) {
+                        respuesta
                             .put("mensaje", "¡Alerta! La parada está llena (aforo máximo alcanzado)")
-                            .put("timestamp", LocalDateTime.now().toString())
                             .put("accionRecomendada", "Redirigir buses a esta parada");
-                        
-                        sendJsonResponse(ctx, 200, alerta);
                     } else {
-                        sendJsonResponse(ctx, 200, 
-                            new JsonObject()
-                                .put("idActuador", idActuador)
-                                .put("estado", false)
-                                .put("mensaje", "La parada opera normalmente"));
+                        respuesta
+                            .put("mensaje", "La parada opera normalmente")
+                            .put("accionRecomendada", "Monitorizar niveles");
                     }
+                    
+                    ctx.response()
+                       .putHeader("Content-Type", "application/json")
+                       .end(respuesta.encode());
                 })
-                .onFailure(err -> sendErrorResponse(ctx, 500, "Error al verificar el estado: " + err.getMessage()));
+                .onFailure(err -> {
+                    ctx.response()
+                       .setStatusCode(500)
+                       .end(new JsonObject().put("error", err.getMessage()).encode());
+                });
         } catch (NumberFormatException e) {
-            sendErrorResponse(ctx, 400, "ID de actuador inválido");
+            ctx.response()
+               .setStatusCode(400)
+               .end(new JsonObject().put("error", "ID de actuador inválido").encode());
         }
     }
     
