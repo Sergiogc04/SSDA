@@ -150,6 +150,27 @@ public class DatabaseService {
             
         return promise.future();
     }
+    
+    public Future<JsonObject> getCamaraById(int idCamara) {
+        Promise<JsonObject> promise = Promise.promise();
+        
+        mariadbPool.preparedQuery("SELECT * FROM Camara WHERE id = ?")
+            .execute(Tuple.of(idCamara))
+            .onSuccess(rows -> {
+                if (rows.size() > 0) {
+                    Row row = rows.iterator().next();
+                    promise.complete(new JsonObject()
+                        .put("id", row.getInteger("id"))
+                        .put("nombre", row.getString("nombre"))
+                        .put("id_grupo", row.getInteger("id_grupo")));
+                } else {
+                    promise.fail("No se encontró la cámara con ID: " + idCamara);
+                }
+            })
+            .onFailure(promise::fail);
+            
+        return promise.future();
+    }
 
     public Future<JsonArray> getActuadores() {
         Promise<JsonArray> promise = Promise.promise();
@@ -170,6 +191,190 @@ public class DatabaseService {
             
         return promise.future();
     }
+    
+ // Añadir estos métodos a la clase DatabaseService
+
+ // Métodos para Grupos
+ public Future<JsonArray> getGrupos() {
+     Promise<JsonArray> promise = Promise.promise();
+     
+     mariadbPool.query("SELECT * FROM Grupo")
+         .execute()
+         .onSuccess(rows -> {
+             JsonArray result = new JsonArray();
+             for (Row row : rows) {
+                 result.add(new JsonObject()
+                     .put("id", row.getInteger("id"))
+                     .put("canalMqtt", row.getString("canalMqtt"))
+                     .put("nombre", row.getString("nombre")));
+             }
+             promise.complete(result);
+         })
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<JsonObject> getGrupoById(int idGrupo) {
+     Promise<JsonObject> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery("SELECT * FROM Grupo WHERE id = ?")
+         .execute(Tuple.of(idGrupo))
+         .onSuccess(rows -> {
+             if (rows.size() > 0) {
+                 Row row = rows.iterator().next();
+                 promise.complete(new JsonObject()
+                     .put("id", row.getInteger("id"))
+                     .put("canalMqtt", row.getString("canalMqtt"))
+                     .put("nombre", row.getString("nombre")));
+             } else {
+                 promise.fail("No se encontró el grupo con ID: " + idGrupo);
+             }
+         })
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<JsonObject> insertGrupo(JsonObject grupo) {
+     Promise<JsonObject> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery(
+         "INSERT INTO Grupo (canalMqtt, nombre) VALUES (?, ?)")
+         .execute(Tuple.of(
+             grupo.getString("canalMqtt"),
+             grupo.getString("nombre")
+         ))
+         .onSuccess(res -> {
+             grupo.put("id", res.property(io.vertx.mysqlclient.MySQLClient.LAST_INSERTED_ID));
+             promise.complete(grupo);
+         })
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<Void> updateGrupo(int id, JsonObject grupo) {
+     Promise<Void> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery(
+         "UPDATE Grupo SET canalMqtt = ?, nombre = ? WHERE id = ?")
+         .execute(Tuple.of(
+             grupo.getString("canalMqtt"),
+             grupo.getString("nombre"),
+             id
+         ))
+         .onSuccess(res -> promise.complete())
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<Void> deleteGrupo(int id) {
+     Promise<Void> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery("DELETE FROM Grupo WHERE id = ?")
+         .execute(Tuple.of(id))
+         .onSuccess(res -> promise.complete())
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ // Métodos para Actuadores (faltantes)
+ public Future<JsonObject> insertActuador(JsonObject actuador) {
+     Promise<JsonObject> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery(
+         "INSERT INTO Actuador (nombre, id_grupo) VALUES (?, ?)")
+         .execute(Tuple.of(
+             actuador.getString("nombre"),
+             actuador.getInteger("id_grupo")
+         ))
+         .onSuccess(res -> {
+             actuador.put("id", res.property(io.vertx.mysqlclient.MySQLClient.LAST_INSERTED_ID));
+             promise.complete(actuador);
+         })
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<Void> updateActuador(int id, JsonObject actuador) {
+     Promise<Void> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery(
+         "UPDATE Actuador SET nombre = ?, id_grupo = ? WHERE id = ?")
+         .execute(Tuple.of(
+             actuador.getString("nombre"),
+             actuador.getInteger("id_grupo"),
+             id
+         ))
+         .onSuccess(res -> promise.complete())
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<Void> deleteActuador(int id) {
+     Promise<Void> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery("DELETE FROM Actuador WHERE id = ?")
+         .execute(Tuple.of(id))
+         .onSuccess(res -> promise.complete())
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ // Métodos para Cámaras (faltantes)
+ public Future<JsonObject> insertCamara(JsonObject camara) {
+     Promise<JsonObject> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery(
+         "INSERT INTO Camara (nombre, id_grupo) VALUES (?, ?)")
+         .execute(Tuple.of(
+             camara.getString("nombre"),
+             camara.getInteger("id_grupo")
+         ))
+         .onSuccess(res -> {
+             camara.put("id", res.property(io.vertx.mysqlclient.MySQLClient.LAST_INSERTED_ID));
+             promise.complete(camara);
+         })
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<Void> updateCamara(int id, JsonObject camara) {
+     Promise<Void> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery(
+         "UPDATE Camara SET nombre = ?, id_grupo = ? WHERE id = ?")
+         .execute(Tuple.of(
+             camara.getString("nombre"),
+             camara.getInteger("id_grupo"),
+             id
+         ))
+         .onSuccess(res -> promise.complete())
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+
+ public Future<Void> deleteCamara(int id) {
+     Promise<Void> promise = Promise.promise();
+     
+     mariadbPool.preparedQuery("DELETE FROM Camara WHERE id = ?")
+         .execute(Tuple.of(id))
+         .onSuccess(res -> promise.complete())
+         .onFailure(promise::fail);
+         
+     return promise.future();
+ }
+    
+    
+    
 
     public Future<Void> close() {
         return mariadbPool.close();
