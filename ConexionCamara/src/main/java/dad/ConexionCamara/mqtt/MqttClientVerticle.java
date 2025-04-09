@@ -4,62 +4,100 @@ import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.client.WebClient;
 import io.vertx.mqtt.MqttClient;
-import io.vertx.mqtt.messages.MqttPublishMessage;
 import io.vertx.mqtt.MqttClientOptions;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
-
 public class MqttClientVerticle extends AbstractVerticle {
-    private Gson gson;
     
     @Override
     public void start(Promise<Void> startFuture) {
-        gson = new Gson();
-        MqttClient mqttClient = MqttClient.create(vertx, new MqttClientOptions().setAutoKeepAlive(true));
+        MqttClientOptions options = new MqttClientOptions()
+            .setAutoKeepAlive(true)
+            .setCleanSession(true);
+        
+        MqttClient mqttClient = MqttClient.create(vertx, options);
         
         mqttClient.connect(1883, "localhost", connectResult -> {
             if (connectResult.succeeded()) {
                 System.out.println("Conectado al broker MQTT");
                 
-                // Suscripción al topic_2
-                mqttClient.subscribe("topic_2", MqttQoS.AT_LEAST_ONCE.value(), subscribeResult -> {
-                    if (subscribeResult.succeeded()) {
-                        System.out.println("Suscrito correctamente. ClientID: " + mqttClient.clientId());
-                    } else {
-                        System.out.println("Error en suscripción: " + subscribeResult.cause().getMessage());
-                    }
-                });
+                // Suscripción a los temas relevantes
+                mqttClient.subscribe("parada/+/personas", MqttQoS.AT_LEAST_ONCE.value());
+                mqttClient.subscribe("parada/+/estado", MqttQoS.AT_LEAST_ONCE.value());
                 
                 // Manejador de mensajes recibidos
                 mqttClient.publishHandler(message -> {
-                    System.out.println("\nMensaje recibido:");
-                    System.out.println("  Topic: " + message.topicName());
-                    System.out.println("  ID mensaje: " + message.messageId());
-                    System.out.println("  Contenido (raw): " + message.payload().toString());
+                    String topic = message.topicName();
+                    String payload = message.payload().toString();
+                    
+                    System.out.println("Mensaje recibido - Topic: " + topic + " - Payload: " + payload);
                     
                     try {
-                        // Intenta parsear como JSON
-                        JsonObject json = gson.fromJson(message.payload().toString(), JsonObject.class);
-                        System.out.println("  Contenido (JSON): " + json);
-                    } catch (JsonSyntaxException e) {
-                        // Si no es JSON válido, muestra como texto plano
-                        System.out.println("  Contenido (texto): " + message.payload().toString());
+                        // Usar el método fromString para crear JsonObject
+                        JsonObject json = new JsonObject(payload);
+                        
+                        if (topic.startsWith("parada/") && topic.endsWith("/personas")) {
+                            // Procesar detección de personas
+                            processDeteccion(json);
+                        } else if (topic.startsWith("parada/") && topic.endsWith("/estado")) {
+                            // Procesar cambio de estado
+                            processEstado(json);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error procesando mensaje MQTT: " + e.getMessage());
+                        e.printStackTrace();
                     }
                 });
                 
-                // Publicar mensaje de ejemplo
-                mqttClient.publish("topic_1", 
-                    Buffer.buffer("{\"ejemplo\":\"mensaje\",\"valor\":123}"), 
-                    MqttQoS.AT_LEAST_ONCE, 
-                    false, 
-                    false);
-                
             } else {
-                System.out.println("Error de conexión: " + connectResult.cause().getMessage());
+                System.err.println("Error de conexión MQTT: " + connectResult.cause().getMessage());
+                startFuture.fail(connectResult.cause());
             }
         });
+    }
+    
+    private void processDeteccion(JsonObject deteccion) {
+        // Verificar que los campos requeridos existen
+        if (deteccion.containsKey("id_camara") && deteccion.containsKey("num_personas")) {
+            WebClient client = WebClient.create(vertx);
+            client.post(8080, "localhost", "/api/detecciones")
+                .sendJsonObject(deteccion, ar -> {
+                    if (ar.succeeded()) {
+                        System.out.println("Detección guardada en BD");
+                    } else {
+                        System.err.println("Error guardando detección: " + ar.cause().getMessage());
+                    }
+                });
+        } else {
+            System.err.println("Detección no contiene campos requeridos");
+        }
+    }
+    
+    private void processEstado(JsonObject estado) {
+        // Usar getInteger() de esta forma
+        Integer idActuador = estado.getInteger("id_actuador");
+        Boolean estadoActuador = estado.getBoolean("estado");
+        
+        if (idActuador != null && estadoActuador != null) {
+            WebClient client = WebClient.create(vertx);
+            client.post(8080, "localhost", "/api/estados-actuador")
+                .sendJsonObject(estado, ar -> {
+                    if (ar.succeeded()) {
+                        System.out.println("Estado actualizado en BD");
+                        publishConfirmacion(idActuador);
+                    } else {
+                        System.err.println("Error actualizando estado: " + ar.cause().getMessage());
+                    }
+                });
+        } else {
+            System.err.println("Estado no contiene campos requeridos");
+        }
+    }
+    
+    private void publishConfirmacion(int idActuador) {
+        // Implementación de confirmación (opcional)
+        System.out.println("Estado del actuador " + idActuador + " actualizado correctamente");
     }
 }

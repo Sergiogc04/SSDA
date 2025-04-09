@@ -20,7 +20,7 @@ public class DatabaseService {
         MySQLConnectOptions connectOptions = new MySQLConnectOptions()
             .setPort(3306)
             .setHost("localhost")
-            .setDatabase("hack4change")
+            .setDatabase("bd_proyectodad")
             .setUser("root")
             .setPassword("root")
             .setCharset("utf8mb4")
