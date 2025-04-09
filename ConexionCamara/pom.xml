@@ -59,7 +59,7 @@
 	    <dependency>
 			<groupId>io.vertx</groupId>
 			<artifactId>vertx-mqtt</artifactId>
-			<version>4.2.6</version>
+			<version>${vertx.version}</version>
 		</dependency>
 	    
 	 <!-- Jackson (para JSON) -->
