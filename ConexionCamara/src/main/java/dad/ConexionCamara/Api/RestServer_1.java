@@ -147,23 +147,27 @@ public class RestServer_1 extends AbstractVerticle {
             int idActuador = Integer.parseInt(ctx.pathParam("idActuador"));
             
             dbService.getLastEstadoActuador(idActuador)
-                .onSuccess(estado -> {
+                .compose(estado -> {
                     boolean estadoActuador = estado.getBoolean("estado", false);
-                    JsonObject respuesta = new JsonObject()
-                        .put("idActuador", idActuador)
-                        .put("estado", estadoActuador)
-                        .put("timestamp", LocalDateTime.now().toString());
-
-                    if (estadoActuador) {
-                        respuesta
-                            .put("mensaje", "¡Alerta! La parada está llena (aforo máximo alcanzado)")
-                            .put("accionRecomendada", "Redirigir buses a esta parada");
-                    } else {
-                        respuesta
-                            .put("mensaje", "La parada opera normalmente")
-                            .put("accionRecomendada", "Monitorizar niveles");
-                    }
                     
+                    // Asumimos que el actuador está asociado a una cámara o grupo
+                    return dbService.getDeteccionesByCamara(null) // Obtener todas las detecciones
+                        .map(detecciones -> {
+                            int numPersonas = 0;
+
+                            if (detecciones.size() > 0) {
+                                JsonObject ultimaDeteccion = detecciones.getJsonObject(detecciones.size() - 1);
+                                numPersonas = ultimaDeteccion.getInteger("num_personas", 0);
+                            }
+
+                            JsonObject respuesta = new JsonObject()
+                                .put("numPersonas", numPersonas)
+                                .put("estadoActuador", estadoActuador);
+
+                            return respuesta;
+                        });
+                })
+                .onSuccess(respuesta -> {
                     ctx.response()
                        .putHeader("Content-Type", "application/json")
                        .end(respuesta.encode());
@@ -173,12 +177,14 @@ public class RestServer_1 extends AbstractVerticle {
                        .setStatusCode(500)
                        .end(new JsonObject().put("error", err.getMessage()).encode());
                 });
+
         } catch (NumberFormatException e) {
             ctx.response()
                .setStatusCode(400)
                .end(new JsonObject().put("error", "ID de actuador inválido").encode());
         }
     }
+
     
  // --- Métodos para Grupos ---
     private void handleGetGrupos(RoutingContext ctx) {

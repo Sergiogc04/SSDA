@@ -19,7 +19,7 @@ public class MqttClientVerticle extends AbstractVerticle {
         
         MqttClient mqttClient = MqttClient.create(vertx, options);
         
-        mqttClient.connect(1883, "localhost", connectResult -> {
+        mqttClient.connect(1883, "192.168.153.74", connectResult -> {
             if (connectResult.succeeded()) {
                 System.out.println("Conectado al broker MQTT");
                 
