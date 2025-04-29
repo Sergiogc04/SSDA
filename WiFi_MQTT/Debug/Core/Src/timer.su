@@ -1,0 +1,5 @@
+../Core/Src/timer.c:12:6:TimerInit	16	static
+../Core/Src/timer.c:16:6:TimerIsExpired	16	static
+../Core/Src/timer.c:20:6:TimerCountdownMS	16	static
+../Core/Src/timer.c:24:6:TimerCountdown	16	static
+../Core/Src/timer.c:28:5:TimerLeftMS	32	static

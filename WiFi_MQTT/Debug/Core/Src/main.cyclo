@@ -1,0 +1,15 @@
+../Core/Src/main.c:59:6:HAL_GPIO_EXTI_Callback	2
+../Core/Src/main.c:120:1:__io_putchar	1
+../Core/Src/main.c:135:5:mqtt_read	2
+../Core/Src/main.c:141:5:mqtt_write	2
+../Core/Src/main.c:147:6:mqtt_network_init	1
+../Core/Src/main.c:152:6:messageArrived	3
+../Core/Src/main.c:187:6:mostrarEnLCD	3
+../Core/Src/main.c:212:6:mi_bot	7
+../Core/Src/main.c:248:5:main	7
+../Core/Src/main.c:363:6:SystemClock_Config	4
+../Core/Src/main.c:414:13:MX_ADC1_Init	4
+../Core/Src/main.c:481:13:MX_SPI3_Init	2
+../Core/Src/main.c:521:13:MX_USART1_UART_Init	2
+../Core/Src/main.c:556:13:MX_GPIO_Init	1
+../Core/Src/main.c:644:6:Error_Handler	1

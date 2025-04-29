@@ -1,0 +1,15 @@
+../Core/Src/es_wifi_io.c:77:6:SPI_WIFI_MspInit	1
+../Core/Src/es_wifi_io.c:149:8:SPI_WIFI_Init	2
+../Core/Src/es_wifi_io.c:207:8:SPI_WIFI_ResetModule	11
+../Core/Src/es_wifi_io.c:249:8:SPI_WIFI_DeInit	1
+../Core/Src/es_wifi_io.c:271:12:wait_cmddata_rdy_high	3
+../Core/Src/es_wifi_io.c:285:12:wait_cmddata_rdy_rising_event	3
+../Core/Src/es_wifi_io.c:303:12:wait_spi_rx_event	3
+../Core/Src/es_wifi_io.c:321:12:wait_spi_tx_event	3
+../Core/Src/es_wifi_io.c:339:9:SPI_WIFI_ReceiveData	7
+../Core/Src/es_wifi_io.c:399:9:SPI_WIFI_SendData	6
+../Core/Src/es_wifi_io.c:447:6:SPI_WIFI_Delay	1
+../Core/Src/es_wifi_io.c:457:6:SPI_WIFI_DelayUs	5
+../Core/Src/es_wifi_io.c:489:6:HAL_SPI_RxCpltCallback	2
+../Core/Src/es_wifi_io.c:504:6:HAL_SPI_TxCpltCallback	2
+../Core/Src/es_wifi_io.c:519:9:SPI_WIFI_ISR	2
