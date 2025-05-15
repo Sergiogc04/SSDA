@@ -54,7 +54,7 @@ public class RestServer_1 extends AbstractVerticle {
         
        
         // Nuevo endpoint para alertas de paradas llenas
-        router.get("/api/alertas/parada-llena/:idActuador").handler(this::handleAlertaParadaLlena);
+        router.get("/api/alertas/parada-llena/:idCamara").handler(this::handleAlertaParadaLlena);
         
         vertx.createHttpServer()
             .requestHandler(router)
@@ -127,9 +127,9 @@ public class RestServer_1 extends AbstractVerticle {
     private void handleAddEstadoActuador(RoutingContext ctx) {
         try {
             JsonObject estado = ctx.getBodyAsJson();
-            if (estado.getInteger("id_actuador") == null || 
+            if (estado.getInteger("id_camara") == null || 
                 estado.getBoolean("estado") == null) {
-                sendErrorResponse(ctx, 400, "Campos requeridos: id_actuador, estado");
+                sendErrorResponse(ctx, 400, "Campos requeridos: id_camara, estado");
                 return;
             }
             
@@ -144,28 +144,20 @@ public class RestServer_1 extends AbstractVerticle {
     // --- Nuevo método para alertas de paradas llenas ---
     private void handleAlertaParadaLlena(RoutingContext ctx) {
         try {
-            int idActuador = Integer.parseInt(ctx.pathParam("idActuador"));
+            int idCamara = Integer.parseInt(ctx.pathParam("idCamara"));
             
-            dbService.getLastEstadoActuador(idActuador)
-                .compose(estado -> {
-                    boolean estadoActuador = estado.getBoolean("estado", false);
+            // Obtener las detecciones para la cámara específica
+            dbService.getDeteccionesByCamara(idCamara)
+                .compose(detecciones -> {
+                    // Usamos una variable final dentro del lambda
+                    final int numPersonas = detecciones.size() > 0 ? 
+                        detecciones.getJsonObject(0).getInteger("num_personas", 0) : 0;
                     
-                    // Asumimos que el actuador está asociado a una cámara o grupo
-                    return dbService.getDeteccionesByCamara(null) // Obtener todas las detecciones
-                        .map(detecciones -> {
-                            int numPersonas = 0;
-
-                            if (detecciones.size() > 0) {
-                                JsonObject ultimaDeteccion = detecciones.getJsonObject(detecciones.size() - 1);
-                                numPersonas = ultimaDeteccion.getInteger("num_personas", 0);
-                            }
-
-                            JsonObject respuesta = new JsonObject()
-                                .put("numPersonas", numPersonas)
-                                .put("estadoActuador", estadoActuador);
-
-                            return respuesta;
-                        });
+                    // Obtener el estado del actuador asociado a esta cámara
+                    return dbService.getLastEstadoActuador(idCamara)
+                        .map(estado -> new JsonObject()
+                            .put("numPersonas", numPersonas)
+                            .put("estadoActuador", estado.getBoolean("estado", false)));
                 })
                 .onSuccess(respuesta -> {
                     ctx.response()
@@ -177,11 +169,10 @@ public class RestServer_1 extends AbstractVerticle {
                        .setStatusCode(500)
                        .end(new JsonObject().put("error", err.getMessage()).encode());
                 });
-
         } catch (NumberFormatException e) {
             ctx.response()
                .setStatusCode(400)
-               .end(new JsonObject().put("error", "ID de actuador inválido").encode());
+               .end(new JsonObject().put("error", "ID de cámara inválido").encode());
         }
     }
 

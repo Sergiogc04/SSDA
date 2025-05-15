@@ -9,9 +9,13 @@ import io.vertx.ext.web.client.WebClient;
 import io.vertx.mqtt.MqttClient;
 import io.vertx.mqtt.MqttClientOptions;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class MqttClientVerticle extends AbstractVerticle {
 
     private MqttClient mqttClient;
+    private static final int DELAY_MS = 1000; // 1 segundo entre publicaciones
 
     @Override
     public void start(Promise<Void> startFuture) {
@@ -25,9 +29,12 @@ public class MqttClientVerticle extends AbstractVerticle {
             if (connectResult.succeeded()) {
                 System.out.println("✅ Conectado al broker MQTT");
 
-                // Aquí puedes hacer un timer para publicar periódicamente o bajo alguna lógica
+                // Lista de cámaras a consultar
+                List<Integer> camaras = Arrays.asList(1, 2, 3);
+
+                // Enviar periódicamente el estado de cada cámara con delay
                 vertx.setPeriodic(5000, id -> {
-                    enviarEstadoDesdeBDAlActuador(1); // ID del actuador que quieras enviar
+                    enviarConDelay(camaras, 0);
                 });
 
                 startFuture.complete();
@@ -38,25 +45,51 @@ public class MqttClientVerticle extends AbstractVerticle {
         });
     }
 
-    private void enviarEstadoDesdeBDAlActuador(int idActuador) {
+    private void enviarConDelay(List<Integer> camaras, int index) {
+        if (index >= camaras.size()) {
+            return;
+        }
+
+        int camaraId = camaras.get(index);
+        enviarEstadoPorCamara(camaraId);
+
+        // Programar el siguiente envío con delay
+        vertx.setTimer(DELAY_MS, timerId -> {
+            enviarConDelay(camaras, index + 1);
+        });
+    }
+
+    private void enviarEstadoPorCamara(int idCamara) {
         WebClient client = WebClient.create(vertx);
 
-        client.get(8080, "localhost", "/api/alertas/parada-llena/" + idActuador)
+        client.get(8080, "localhost", "/api/alertas/parada-llena/" + idCamara)
             .send(ar -> {
                 if (ar.succeeded()) {
-                    JsonObject respuesta = ar.result().bodyAsJsonObject();
+                    JsonObject estado = ar.result().bodyAsJsonObject();
 
-                    System.out.println("📤 Publicando a actuador/1/estado: " + respuesta.encode());
+                    if (estado != null) {
+                        String topic = "grupo" + (idCamara - 1); // Ej. grupo0 para camara 1
+                        
+                        // Extraer valores y formatear mensaje
+                        int numPersonas = estado.getInteger("numPersonas", 0);
+                        boolean estadoActuador = estado.getBoolean("estadoActuador", false);
+                        String mensajeSimplificado = numPersonas + "," + estadoActuador;
+                        
+                        System.out.println("📤 Enviando a " + topic + ": " + mensajeSimplificado);
 
-                    mqttClient.publish(
-                        "actuador/" + idActuador + "/estado",  // El STM debe suscribirse a esto
-                        Buffer.buffer(respuesta.encode()),
-                        MqttQoS.AT_LEAST_ONCE,
-                        false,
-                        false
-                    );
+                        mqttClient.publish(
+                            topic,
+                            Buffer.buffer(mensajeSimplificado),
+                            MqttQoS.AT_LEAST_ONCE,
+                            false,
+                            false
+                        );
+                        
+                    } else {
+                        System.out.println("⚠️ No se encontró estado para cámara " + idCamara);
+                    }
                 } else {
-                    System.err.println("❌ Error consultando BD: " + ar.cause().getMessage());
+                    System.err.println("❌ Error consultando estado cámara " + idCamara + ": " + ar.cause().getMessage());
                 }
             });
     }

@@ -93,14 +93,14 @@ public class DatabaseService {
         Promise<JsonObject> promise = Promise.promise();
         
         mariadbPool.preparedQuery(
-            "SELECT * FROM EstadoActuador WHERE id_actuador = ? ORDER BY timestamp DESC LIMIT 1")
+            "SELECT * FROM EstadoActuador WHERE id_camara = ? ORDER BY timestamp DESC LIMIT 1")
             .execute(Tuple.of(idActuador))
             .onSuccess(rows -> {
                 if (rows.size() > 0) {
                     Row row = rows.iterator().next();
                     promise.complete(new JsonObject()
                         .put("id", row.getInteger("id"))
-                        .put("id_actuador", row.getInteger("id_actuador"))
+                        .put("id_camara", row.getInteger("id_camara"))
                         .put("estado", row.getBoolean("estado"))
                         .put("timestamp", row.getLocalDateTime("timestamp").toString()));
                 } else {
@@ -116,9 +116,9 @@ public class DatabaseService {
         Promise<JsonObject> promise = Promise.promise();
         
         mariadbPool.preparedQuery(
-            "INSERT INTO EstadoActuador (id_actuador, estado) VALUES (?, ?)")
+            "INSERT INTO EstadoActuador (id_camara, estado) VALUES (?, ?)")
             .execute(Tuple.of(
-                estado.getInteger("id_actuador"),
+                estado.getInteger("id_camara"),
                 estado.getBoolean("estado")
             ))
             .onSuccess(res -> {
