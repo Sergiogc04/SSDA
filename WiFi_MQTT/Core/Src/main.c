@@ -39,7 +39,7 @@
 #define TERMINAL_USE
 
 /* Update SSID and PASSWORD with own Access point settings */
-#define SSID     "Redmi Note 10 5G"
+#define SSID     "Red"
 #define PASSWORD "patata88"
 
 uint8_t RemoteIP[] = {192,168,153,74}; // aqui se digina al broker
@@ -152,7 +152,7 @@ void mqtt_network_init(Network* n) {
 void messageArrived(MessageData* md) {
     MQTTMessage* message = md->message;
 
-    TERMOUT("MQTT Message: mensaje");
+    //TERMOUT("MQTT Message: recibido\r\n");
     char str[100];
     int len = (int)message->payloadlen;
     if (len >= sizeof(str)) len = sizeof(str) - 1;
@@ -171,39 +171,45 @@ void messageArrived(MessageData* md) {
     memcpy(topicName, topic, topic_len);
     topicName[topic_len] = '\0';
 
-    char numero_char = topicName[5]; // '1'
+    char numero_char = topicName[12]; // '1'
     int numero = numero_char - '0'; // Convertir el caracter '1' a número 1
-
-
+   /*TERMOUT("Camara: %d\r\n", numero);
+    TERMOUT("Modo: %d\r\n", modo);
     TERMOUT("Payload recibido: %s\r\n", str);
     TERMOUT("Dato1: %s\r\n", dato1);
     TERMOUT("Dato2: %s\r\n", dato2);
+    */
+    TERMOUT("MQTT Message: P%d: %s personas \r\n",numero, dato1);
+    TERMOUT("\r\n",numero, dato1);
     mostrarEnLCD(dato1, numero,dato2);
 
+    HAL_Delay(100);
 
 }
 
 
 void mostrarEnLCD(char* mensaje, int topico, char* estado) {
-	char res1[20];
-	char res2[20];
+	char res1[100];
+	char res2[100];
 
 	if(topico == modo){
-	    TERMOUT("MQTT Message: P%d: %s personas",topico, mensaje);
+	    //TERMOUT("MQTT Message: P%d: %s personas \r\n",topico, mensaje);
 	   	sprintf(res1,"P%d: %s personas", topico, mensaje);
 	   	moveToXY(0, 0);
 	   	lcd_print(res1);
+
+	   	if(strcmp(estado, "true") == 0){
+	   			//TERMOUT("MQTT Message: La P%d esta llena \r\n",topico);
+	   			sprintf(res2,"La P%d esta llena", topico);
+	   			moveToXY(1, 0);
+	   			lcd_print(res2);
+	   	}else{
+	   			moveToXY(1, 0);
+	   			lcd_print("                ");
+	   	}
 	}
 
-	if(strcmp(estado, "true") == 0){
-		TERMOUT("MQTT Message: La P%d esta llena",topico);
-		sprintf(res2,"La P%d esta llena", topico);
-		moveToXY(1, 0);
-		lcd_print(res2);
-	}else{
-		moveToXY(1, 0);
-		lcd_print("                ");
-	}
+
 
 
 
@@ -224,13 +230,13 @@ void mi_bot(void)
 	{
 		if (botin<2730 && 2000<botin){ //boton LEFT
 			if(modo == 0){
-				modo = num_paradas;
+				modo = num_paradas-1;
 			}else{
 			modo=modo-1;
 			}
 		}
 		if(botin<10){ //boton RIGHT
-			if(modo == num_paradas){
+			if(modo == (num_paradas-1)){
 				modo = 0;
 			}else{
 				modo=modo+1;
@@ -254,7 +260,7 @@ int main(void)
 	  int32_t Socket = -1;
 	  int16_t Trials = CONNECTION_TRIAL_MAX;
 	  modo = 0;
-	  num_paradas=2;
+	  num_paradas=3;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -333,9 +339,8 @@ int main(void)
       lcd_clear();
       moveToXY(0, 0);
       lcd_print("MQTT connected!");
-      MQTTSubscribe(&client, "grupo0", QOS0, messageArrived);
-      MQTTSubscribe(&client, "grupo1", QOS0, messageArrived);
-      MQTTSubscribe(&client, "grupo2", QOS0, messageArrived);
+
+      MQTTSubscribe(&client, "grupo/#", QOS0, messageArrived);
     }
 
   /* USER CODE END 2 */
@@ -348,6 +353,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	 mi_bot();
+	 HAL_Delay(100);
 	 MQTTYield(&client, 1000);
 
 
