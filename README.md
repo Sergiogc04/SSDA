@@ -51,10 +51,14 @@ Instead of resource-heavy AI models, this project implements a **Frame-to-Frame 
 
 ---
 
-## Author
+## Authors
 **Sirio Randazzo Lecubarri**
-**Sergio Garrido**
-**Antonio**
-**Daniel **
-*Computer Engineering Student (Computer Engineering Track)*
+
+**Sergio Garrido Caballero**
+
+**Antonio Presencio de Olmedo**
+
+**Daniel Salamanca Garrido**
+
+*Computer Engineering Student*
 **University of Seville**
