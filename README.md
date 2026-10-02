@@ -1,81 +1,89 @@
-# SSDA: Bus Stop Occupancy Tracking & Distribution System
+# SSDA – Bus Stop Occupancy Monitoring System
 
-**SSDA** (*Sistema de Seguimiento y Distribución de Autobuses*) is a comprehensive IoT solution designed to monitor and manage bus stop occupancy in real time. By leveraging **Edge Computing**, the system detects passenger flow locally on microcontrollers and synchronizes data across a distributed network using **MQTT** and custom APIs.
+**SSDA** (*Sistema de Seguimiento y Distribución de Autobuses*) is an end-to-end IoT system that monitors bus stop occupancy in real time. Low-cost ESP32-CAM nodes detect occupancy locally at the edge, a Java backend stores and exposes the data through a REST API, and an MQTT channel pushes the live status of each stop to a central display unit.
 
----
-
-## Table of Contents
-
-- [Project Overview](#project-overview)
-- [Technical Architecture](#technical-architecture)
-- [Edge Detection Algorithm](#edge-detection-algorithm)
-- [Key Features](#key-features)
-- [Tech Stack](#tech-stack)
-- [Repository Structure](#repository-structure)
-- [Getting Started](#getting-started)
-- [Authors](#authors)
-- [License](#license)
+Developed as a team project for the *Distributed Application Development* course of the Computer Engineering degree at the University of Seville.
 
 ---
 
-## Project Overview
+## Architecture
 
-Traditional bus-stop monitoring relies on manual counts or expensive centralized vision systems. SSDA takes a different approach: cheap, distributed ESP32-CAM nodes run occupancy detection locally, at the edge, and only send lightweight status updates upstream. This keeps bandwidth and infrastructure costs low while still enabling real-time, city-wide visibility into which stops are full and which have room.
+```mermaid
+flowchart LR
+    CAM["ESP32-CAM nodes<br/>(edge detection)"] -- "HTTP POST<br/>(JSON)" --> API["Java backend<br/>Vert.x REST API"]
+    API <--> DB[("MariaDB<br/>historical data")]
+    API -- "publish" --> BROKER["Mosquitto<br/>MQTT broker"]
+    BROKER -- "subscribe" --> HUB["STM32 hub<br/>LCD + buttons"]
+```
 
-## Technical Architecture
+The system has four parts:
 
-The system is structured into three main layers:
+- **Edge nodes (ESP32-CAM):** one camera per bus stop. Each node analyses frames locally and sends only lightweight detection events to the backend over WiFi via HTTP, never raw images.
+- **Backend (Java + Vert.x):** an asynchronous REST API that manages cameras, actuators, stop groups and detections, and persists everything in MariaDB.
+- **Messaging (MQTT):** an MQTT client inside the backend periodically publishes the status of each stop to a Mosquitto broker, with one topic per stop group.
+- **Control hub (STM32):** a board with built-in WiFi subscribes to the stop topics and shows the status on an LCD. Physical buttons let the operator switch between stops.
 
-- **Edge Nodes (ESP32-CAM):** Independent camera units placed at each bus stop that perform local image analysis and occupancy counting, without relying on a cloud vision service.
-- **Communication Layer:** A dual-layer API architecture (High-level / Low-level) that manages data flow between nodes via **WiFi** and the **MQTT** protocol.
-- **Command Center (Actuator):** A central node with an **LCD interface** and physical buttons that lets an operator monitor and switch between the feeds of different bus stops in real time.
+## Edge detection algorithm
 
-## Edge Detection Algorithm
+Running a neural network was not viable on the ESP32-CAM, so occupancy is detected with a lightweight **frame-differencing** algorithm:
 
-Instead of resource-heavy AI models that wouldn't fit on constrained hardware, this project implements a **frame-to-frame comparison** algorithm optimized for microcontrollers:
+- Frames are captured at **QVGA (320×240)**.
+- Each frame is split into **16×16-pixel blocks**, and each block is compared with the same block in the previous frame.
+- A block whose change exceeds a **20% threshold** counts as movement and triggers a detection event.
+- The previous and current frame buffers are allocated once and reused, which avoids heap fragmentation on the microcontroller.
 
-- **Resolution:** QVGA (320×240).
-- **Block-based analysis:** each frame is divided into **16×16 pixel blocks** for efficient processing.
-- **Motion threshold:** a **20% change threshold** per block triggers person-counting events.
-- **Memory efficiency:** global frame buffers (`prev_frame`, `current_frame`) are reused to minimize heap fragmentation on the ESP32.
+## REST API
 
-## Key Features
+The backend listens on port `8080`. All endpoints use JSON.
 
-- **Real-time monitoring** of occupancy status (Full / Available) per bus stop.
-- **Multi-tier API design:**
-  - *Low-level API:* hardware abstraction, sensor readings, and camera control.
-  - *High-level API:* business logic, database synchronization, and network protocols.
-- **Interactive HMI:** a physical control interface to switch between bus stop feeds on the local LCD.
-- **Historical logging:** integration with a database backend for long-term urban analytics and data persistence.
+| Resource | Endpoints |
+|---|---|
+| Cameras | `GET /api/camara` · `GET /api/camara/:id` · `POST /api/camara` · `PUT /api/camara/:id` · `DELETE /api/camara/:id` |
+| Actuators | `GET /api/actuators/:id` · `POST /api/actuators` · `PUT /api/actuators/:id` · `DELETE /api/actuators/:id` |
+| Stop groups | `GET /api/groups` · `GET /api/groups/:id` · `POST /api/groups` · `PUT /api/groups/:id` · `DELETE /api/groups/:id` |
+| Detections | `GET /api/detecciones` · `GET /api/detecciones/:idCamara` · `POST /api/detecciones` |
+| Actuator state | `GET /api/estados-actuador/:idActuador` · `POST /api/estados-actuador` |
+| Alerts | `GET /api/alertas/parada-llena/:idCamara` (is the stop full?) |
 
-## Tech Stack
+The API was tested with **Postman** during development.
 
-- **Languages:** C / C++ (Arduino / ESP-IDF framework).
-- **Hardware:** ESP32-CAM camera units, ESP32/STM32 actuator hub, I2C LCD display.
-- **Protocols:** MQTT (Mosquitto broker), HTTP/REST, WiFi.
-- **Other:** Digital Image Processing (DIP), database logging.
+## Tech stack
 
-## Repository Structure
+| Layer | Technologies |
+|---|---|
+| Edge firmware | C++ (Arduino framework), ESP32-CAM, `HTTPClient` |
+| Backend | Java 11, Vert.x 4.5 (Web, Web Client, MySQL Client, MQTT), Maven |
+| Database | MariaDB / MySQL |
+| Messaging | MQTT, Eclipse Mosquitto |
+| Control hub | C (STM32 HAL, STM32CubeIDE), STM32L475 with WiFi module, Paho MQTT Embedded C, HD44780 LCD |
+| Testing | Postman |
+
+## Repository structure
 
 ```
 SSDA/
-├── BaseDeDatos/       # Database schema and logic for historical occupancy logging
-├── Camara/            # ESP32-CAM firmware: image capture and occupancy detection
-├── ConexionCamara/    # Networking layer connecting camera nodes to the system (WiFi/API)
-├── WiFi_MQTT/         # WiFi provisioning and MQTT communication layer
-└── .project           # Project configuration file
+├── Camara/           # ESP32-CAM firmware: capture, edge detection, HTTP client
+├── ConexionCamara/   # Java backend: Vert.x REST API, MQTT publisher, DB service
+├── BaseDeDatos/      # SQL schema and example queries
+└── WiFi_MQTT/        # STM32 firmware: WiFi, MQTT subscriber, LCD and buttons
 ```
 
-> Note: folder names are kept in Spanish, as in the original project. Feel free to rename them to English (e.g. `Database/`, `Camera/`, `CameraConnection/`, `WiFi_MQTT/`) if you want the repo to be fully English-facing.
+## Getting started
 
-## Getting Started
+**Requirements:** Java 11+, Maven, MariaDB or MySQL, a Mosquitto broker, Arduino IDE (with ESP32 support) and STM32CubeIDE.
 
-1. **Hardware setup:** flash the firmware in `Camara/` onto each ESP32-CAM unit, and the actuator firmware onto the central hub.
-2. **Network configuration:** set your WiFi credentials and MQTT broker address in `WiFi_MQTT/`.
-3. **Database:** set up the schema/backend described in `BaseDeDatos/` to receive and store occupancy logs.
-4. **Run:** power on the camera nodes and the actuator hub; occupancy status should start streaming to the LCD and the database in real time.
+1. **Database:** create the database and run `BaseDeDatos/Tablas.sql` to create the tables.
+2. **Backend:** set the database credentials in `DatabaseService.java` and the broker address in `MqttClientVerticle.java`, then build and run:
+   ```bash
+   cd ConexionCamara
+   mvn package
+   java -jar target/ConexionCamara-0.0.1-SNAPSHOT.jar
+   ```
+3. **MQTT broker:** start Mosquitto on port `1883`.
+4. **ESP32-CAM:** set the WiFi credentials and the backend IP in `Camara/codigo_conteo/codigo_conteo.ino`, then flash it from the Arduino IDE.
+5. **STM32 hub:** set the WiFi credentials and the broker address in `WiFi_MQTT/Core/Src/main.c`, then build and flash it from STM32CubeIDE.
 
-*(Adjust these steps to match your actual build/flash tooling — e.g. Arduino IDE, PlatformIO, or ESP-IDF — and add exact commands once confirmed.)*
+Once everything is running, detections appear in the database and the hub's LCD shows the live status of the selected stop.
 
 ## Authors
 
@@ -84,8 +92,4 @@ SSDA/
 - Antonio Presencio de Olmedo
 - Daniel Salamanca Garrido
 
-*Computer Engineering students — University of Seville*
-
-## License
-
-No license has been specified for this project yet. Consider adding one (e.g. MIT, Apache 2.0) if you plan to share it publicly.
+Computer Engineering students, University of Seville.
